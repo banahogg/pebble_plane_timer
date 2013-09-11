@@ -5,7 +5,7 @@
 
 #define MY_UUID { 0xBD, 0x1F, 0xCB, 0x2A, 0xBB, 0x06, 0x44, 0xC3, 0x8E, 0x9E, 0x55, 0xF2, 0x1F, 0xA6, 0xEB, 0xB8 }
 PBL_APP_INFO(MY_UUID,
-             "Mark Plane Watch", "Banahogg",
+             "FlightTimer", "Banahogg",
              1, 0, /* App version */
              DEFAULT_MENU_ICON,
              APP_INFO_STANDARD_APP);
@@ -171,12 +171,12 @@ void handle_second_tick(AppContextRef ctx, PebbleTickEvent *t) {
   if (window_stack_get_top_window() != &clockWindow) return;
 	
   // Need to be static because they're used by the system later.
-  static char local_text[] = "00:00:00 local";
+  static char local_text[] = "00:00:00L";
   static char zulu_text[] = "00:00:00Z";
   static char t1_text[] = "000:00 T1";
   static char t2_text[] = "000:00 T2";
 
-  string_format_time(local_text, sizeof(local_text), "%T local", t->tick_time);
+  string_format_time(local_text, sizeof(local_text), "%TL", t->tick_time);
   text_layer_set_text(&localLayer, local_text);
 
   PblTm tm = *(t->tick_time);
