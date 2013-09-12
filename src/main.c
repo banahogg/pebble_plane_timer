@@ -14,12 +14,13 @@ Window window;
 
 #define NUM_TIMERS 2
 
+uint8_t invert = 1;
 int16_t gmtOffset = -7;
 int16_t timerMinutes[NUM_TIMERS] = {30, 0};
 int16_t timerRemainSeconds[NUM_TIMERS] = {-1, -1};
 
 #define NUM_MENU_SECTIONS 1
-#define NUM_MAIN_MENU_ITEMS 4
+#define NUM_MAIN_MENU_ITEMS 5
 #define FIRST_TIMER_ITEM 1
 	
 // This is a simple menu layer
@@ -31,8 +32,13 @@ SimpleMenuSection menu_sections[NUM_MENU_SECTIONS];
 // Each section is composed of a number of menu items
 SimpleMenuItem main_menu_items[NUM_MAIN_MENU_ITEMS];
 
+static char invertMenuText[32];
 static char gmtMenuText[8];
 static char timerMenuText[2][32];
+
+void updateInvertMenuText() {
+	strncpy(invertMenuText, invert ? "White on black" : "Black on white", sizeof(invertMenuText));
+}
 
 void updateGmtMenuText() {
   snprintf(gmtMenuText, sizeof(gmtMenuText), "%+d", gmtOffset);
@@ -149,6 +155,12 @@ void gmt_select_callback(int index, void *ctx) {
 	window_stack_push((Window *)&numberWindow, true);
 }
 
+void invert_select_callback(int index, void *ctx) {
+  invert = !invert;
+  updateInvertMenuText();
+  layer_mark_dirty(simple_menu_layer_get_layer(&simple_menu_layer));
+}
+
 void notify() {
   static const uint32_t const segments[] = { 100, 100, 100, 500, 100, 100, 100, 500, 100, 100, 100 };
   VibePattern pat = {
@@ -206,6 +218,8 @@ void handle_second_tick(AppContextRef ctx, PebbleTickEvent *t) {
   }
 }
 
+InverterLayer inverter_layer;
+
 void clock_select_callback(int index, void *ctx) {
   window_init(&clockWindow, "Timer clock");
   window_stack_push(&clockWindow, true /* Animated */);	
@@ -237,6 +251,11 @@ void clock_select_callback(int index, void *ctx) {
   text_layer_set_background_color(&t2Layer, GColorClear);
   text_layer_set_font(&t2Layer, fonts_get_system_font(FONT_KEY_GOTHIC_28));
   layer_add_child(&clockWindow.layer, &t2Layer.layer);
+	
+  if (invert) {
+    inverter_layer_init(&inverter_layer, GRect(0, 0, 144, 168));
+    layer_add_child(&clockWindow.layer, &inverter_layer.layer);
+  }
 }
 
 // This initializes the menu upon window load
@@ -263,6 +282,11 @@ void window_load(Window *me) {
     .subtitle = gmtMenuText,
     .callback = gmt_select_callback,
   };
+  main_menu_items[FIRST_TIMER_ITEM+3] = (SimpleMenuItem){
+    .title = "Color scheme",
+    .subtitle = invertMenuText,
+    .callback = invert_select_callback,
+  };
 
   // Bind the menu items to the corresponding menu sections
   menu_sections[0] = (SimpleMenuSection){
@@ -272,6 +296,7 @@ void window_load(Window *me) {
 	
   updateTimerMenuText();
   updateGmtMenuText();
+  updateInvertMenuText();
   
   // Now we prepare to initialize the simple menu layer
   // We need the bounds to specify the simple menu layer's viewport size
