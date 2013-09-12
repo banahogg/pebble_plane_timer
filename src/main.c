@@ -220,6 +220,19 @@ void handle_second_tick(AppContextRef ctx, PebbleTickEvent *t) {
 
 InverterLayer inverter_layer;
 
+void clock_up_long_click_handler(ClickRecognizerRef recognizer, Window *window) {
+  resetTimer(0);
+}
+
+void clock_down_long_click_handler(ClickRecognizerRef recognizer, Window *window) {
+  resetTimer(1);
+}
+
+void clock_click_config_provider(ClickConfig **config, Window *window) {
+  config[BUTTON_ID_UP]->long_click.handler = (ClickHandler) clock_up_long_click_handler;
+  config[BUTTON_ID_DOWN]->long_click.handler = (ClickHandler) clock_down_long_click_handler;
+}
+
 void clock_select_callback(int index, void *ctx) {
   window_init(&clockWindow, "Timer clock");
   window_stack_push(&clockWindow, true /* Animated */);	
@@ -256,6 +269,8 @@ void clock_select_callback(int index, void *ctx) {
     inverter_layer_init(&inverter_layer, GRect(0, 0, 144, 168));
     layer_add_child(&clockWindow.layer, &inverter_layer.layer);
   }
+
+  window_set_click_config_provider(&clockWindow, (ClickConfigProvider) clock_click_config_provider);
 }
 
 // This initializes the menu upon window load
