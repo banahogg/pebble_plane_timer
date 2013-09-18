@@ -162,7 +162,7 @@ void invert_select_callback(int index, void *ctx) {
 }
 
 void notify() {
-  static const uint32_t const segments[] = { 100, 100, 100, 500, 100, 100, 100, 500, 100, 100, 100 };
+  static const uint32_t const segments[] = { 100, 100, 100 };
   VibePattern pat = {
     .durations = segments,
     .num_segments = ARRAY_LENGTH(segments),
@@ -178,6 +178,13 @@ void resetTimer(int i) {
 Window clockWindow;
 TextLayer localLayer, zuluLayer, t1Layer, t2Layer; 
 
+static void formatTime(char *text, size_t len, const char *name, int16_t time) {
+  char sign = ' ';
+  if (time < 0) { time = -time; sign = '-'; }
+	
+  snprintf(text, len, "%c%3d:%.2d %s", sign, time/60, time%60, name);	
+}
+
 void handle_second_tick(AppContextRef ctx, PebbleTickEvent *t) {
 
   if (window_stack_get_top_window() != &clockWindow) return;
@@ -185,8 +192,8 @@ void handle_second_tick(AppContextRef ctx, PebbleTickEvent *t) {
   // Need to be static because they're used by the system later.
   static char local_text[] = "00:00:00L";
   static char zulu_text[] = "00:00:00Z";
-  static char t1_text[] = "000:00 T1";
-  static char t2_text[] = "000:00 T2";
+  static char t1_text[] = "s000:00 T1";
+  static char t2_text[] = "s000:00 T2";
 
   string_format_time(local_text, sizeof(local_text), "%TL", t->tick_time);
   text_layer_set_text(&localLayer, local_text);
@@ -198,21 +205,16 @@ void handle_second_tick(AppContextRef ctx, PebbleTickEvent *t) {
   string_format_time(zulu_text, sizeof(zulu_text), "%TZ", &tm);
   text_layer_set_text(&zuluLayer, zulu_text);
 
-  snprintf(t1_text, sizeof(t1_text), "%3d:%.2d T1", timerRemainSeconds[0]/60, timerRemainSeconds[0]%60);
+  formatTime(t1_text, sizeof(t1_text), "T1", timerRemainSeconds[0]);
   text_layer_set_text(&t1Layer, t1_text);
-  snprintf(t2_text, sizeof(t2_text), "%3d:%.2d T2", timerRemainSeconds[1]/60, timerRemainSeconds[1]%60);
+  formatTime(t2_text, sizeof(t2_text), "T2", timerRemainSeconds[1]);
   text_layer_set_text(&t2Layer, t2_text);
 	
-  bool notified = false;
   for (int i=0; i<NUM_TIMERS; i++) {
     if (timerMinutes[i] > 0) {
       timerRemainSeconds[i]--;
-		if (timerRemainSeconds[i] == 0) {
-			if (!notified) {
-				notify();
-				notified = true;
-			}
-			resetTimer(i);
+		if (timerRemainSeconds[i] < 0) {
+			notify();
 		}
 	}
   }
