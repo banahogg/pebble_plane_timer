@@ -18,6 +18,7 @@ uint8_t invert = 1;
 int16_t gmtOffset = -7;
 int16_t timerMinutes[NUM_TIMERS] = {30, 0};
 int16_t timerRemainSeconds[NUM_TIMERS] = {-1, -1};
+int32_t elapsedSeconds = 0;
 
 #define NUM_MENU_SECTIONS 1
 #define NUM_MAIN_MENU_ITEMS 5
@@ -176,13 +177,13 @@ void resetTimer(int i) {
 }
 
 Window clockWindow;
-TextLayer localLayer, zuluLayer, t1Layer, t2Layer; 
+TextLayer localLayer, zuluLayer, t1Layer, t2Layer, elLayer; 
 
 static void formatTime(char *text, size_t len, const char *name, int16_t time) {
   char sign = ' ';
   if (time < 0) { time = -time; sign = '-'; }
 	
-  snprintf(text, len, "%c%3d:%.2d %s", sign, time/60, time%60, name);	
+  snprintf(text, len, "%c%.2d:%.2d %s", sign, time/60, time%60, name);	
 }
 
 void handle_second_tick(AppContextRef ctx, PebbleTickEvent *t) {
@@ -194,6 +195,7 @@ void handle_second_tick(AppContextRef ctx, PebbleTickEvent *t) {
   static char zulu_text[] = "00:00:00Z";
   static char t1_text[] = "s000:00 T1";
   static char t2_text[] = "s000:00 T2";
+  static char elapsed_text[] = "00:00:00 EL";
 
   string_format_time(local_text, sizeof(local_text), "%TL", t->tick_time);
   text_layer_set_text(&localLayer, local_text);
@@ -209,7 +211,20 @@ void handle_second_tick(AppContextRef ctx, PebbleTickEvent *t) {
   text_layer_set_text(&t1Layer, t1_text);
   formatTime(t2_text, sizeof(t2_text), "T2", timerRemainSeconds[1]);
   text_layer_set_text(&t2Layer, t2_text);
+	{
+		int sec = elapsedSeconds;
+		int hours = sec / 3600;
+		sec -= hours * 3600;
+		int minutes = sec / 60;
+		sec -= minutes * 60;
+		int seconds = sec;
+		
+		snprintf(elapsed_text, sizeof(elapsed_text), "%.2d:%.2d:%.2d EL", 
+				hours, minutes, seconds);
+		text_layer_set_text(&elLayer, elapsed_text);
+	}
 	
+  elapsedSeconds++;
   for (int i=0; i<NUM_TIMERS; i++) {
     if (timerMinutes[i] > 0) {
       timerRemainSeconds[i]--;
@@ -239,6 +254,7 @@ void clock_select_callback(int index, void *ctx) {
   window_init(&clockWindow, "Timer clock");
   window_stack_push(&clockWindow, true /* Animated */);	
 
+  elapsedSeconds = 0;
   for (int i=0; i<NUM_TIMERS; i++) {
 	 resetTimer(i);
   }
@@ -266,6 +282,12 @@ void clock_select_callback(int index, void *ctx) {
   text_layer_set_background_color(&t2Layer, GColorClear);
   text_layer_set_font(&t2Layer, fonts_get_system_font(FONT_KEY_GOTHIC_28));
   layer_add_child(&clockWindow.layer, &t2Layer.layer);
+	
+  text_layer_init(&elLayer, GRect(8, 104, 144-8, 168-68));
+  text_layer_set_text_color(&elLayer, GColorBlack);
+  text_layer_set_background_color(&elLayer, GColorClear);
+  text_layer_set_font(&elLayer, fonts_get_system_font(FONT_KEY_GOTHIC_28));
+  layer_add_child(&clockWindow.layer, &elLayer.layer);
 	
   if (invert) {
     inverter_layer_init(&inverter_layer, GRect(0, 0, 144, 168));
